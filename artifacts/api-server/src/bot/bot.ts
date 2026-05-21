@@ -5,9 +5,7 @@ import { logger } from "../lib/logger";
 import { downloadQueue } from "./queue";
 import {
   isInstagramUrl,
-  isSupportedUrl,
   searchAndDownloadMusic,
-  downloadAudio,
   getInstagramDirectUrl,
   downloadInstagramVideo,
 } from "./downloader";
@@ -28,30 +26,58 @@ Instagram linkini yuboring
 
 *Musiqa qidirish:*
 Qo'shiq yoki qo'shiqchi nomini yozing
-Masalan: _Sardor Rahimxon_ yoki _Shaxzoda Baxtim_
+_Masalan: Sardor Rahimxon yoki Shaxzoda Baxtim_
 
 *Yordam:*
 /help — ushbu xabar
 `;
+
+const LOADING_FRAMES = [
+  "⏳ Yuklanmoqda",
+  "⏳ Yuklanmoqda.",
+  "⏳ Yuklanmoqda..",
+  "⏳ Yuklanmoqda...",
+];
+
+function startProgressUpdater(
+  chatId: number,
+  messageId: number,
+  telegram: Telegraf["telegram"],
+  label = "Yuklanmoqda"
+): () => void {
+  let frame = 0;
+  let seconds = 0;
+  const interval = setInterval(async () => {
+    seconds += 10;
+    frame = (frame + 1) % LOADING_FRAMES.length;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const elapsed = mins > 0 ? `${mins}:${String(secs).padStart(2, "0")}` : `${secs}s`;
+    try {
+      await telegram.editMessageText(
+        chatId, messageId, undefined,
+        `${LOADING_FRAMES[frame]} (${elapsed})\n📥 ${label}`
+      );
+    } catch {}
+  }, 10000);
+  return () => clearInterval(interval);
+}
 
 function isAdmin(id: number) {
   return id === ADMIN_ID;
 }
 
 async function handleMusicSearch(ctx: any, query: string) {
-  const statusMsg = await ctx.reply(`🔍 Qidirilmoqda: *${query}*...`, {
-    parse_mode: "Markdown",
-  });
+  const statusMsg = await ctx.reply("🔍 Qidirilmoqda...");
 
   downloadQueue.add(`music_${ctx.from.id}_${Date.now()}`, async () => {
+    const stop = startProgressUpdater(
+      ctx.chat.id, statusMsg.message_id, ctx.telegram,
+      `"${query}" qo'shig'i`
+    );
     try {
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, statusMsg.message_id, undefined,
-        `⬇️ Yuklanmoqda: *${query}*...`,
-        { parse_mode: "Markdown" }
-      );
-
       const result = await searchAndDownloadMusic(query);
+      stop();
 
       await ctx.telegram.editMessageText(
         ctx.chat.id, statusMsg.message_id, undefined, "📤 Yuborilmoqda..."
@@ -69,6 +95,7 @@ async function handleMusicSearch(ctx: any, query: string) {
       await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
       result.cleanup();
     } catch (err) {
+      stop();
       logger.error({ err, query }, "Music search failed");
       await ctx.telegram.editMessageText(
         ctx.chat.id, statusMsg.message_id, undefined,
@@ -89,41 +116,6 @@ bot.help((ctx) => {
   ctx.replyWithMarkdown(HELP_TEXT);
 });
 
-bot.command("audio", async (ctx) => {
-  registerUser(ctx.from.id);
-  const url = ctx.message.text.replace(/^\/audio\s*/i, "").trim();
-  if (!url) {
-    await ctx.reply("❌ Link kiriting\nMasalan: /audio https://soundcloud.com/...");
-    return;
-  }
-
-  const statusMsg = await ctx.reply("⬇️ Audio yuklanmoqda...");
-
-  downloadQueue.add(`audio_${ctx.from.id}_${Date.now()}`, async () => {
-    try {
-      const result = await downloadAudio(url);
-
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, statusMsg.message_id, undefined, "📤 Yuborilmoqda..."
-      );
-
-      await ctx.replyWithAudio(
-        { source: fs.createReadStream(result.filePath) },
-        { title: result.title, caption: `🎵 ${result.title}` }
-      );
-
-      await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
-      result.cleanup();
-    } catch (err) {
-      logger.error({ err, url }, "Audio download failed");
-      await ctx.telegram.editMessageText(
-        ctx.chat.id, statusMsg.message_id, undefined,
-        "❌ Yuklab bo'lmadi. Link to'g'riligini tekshiring."
-      ).catch(() => ctx.reply("❌ Yuklab bo'lmadi."));
-    }
-  });
-});
-
 bot.command("broadcast", async (ctx) => {
   if (!isAdmin(ctx.from.id)) {
     await ctx.reply("❌ Sizda bu buyruqni ishlatish huquqi yo'q.");
@@ -132,10 +124,7 @@ bot.command("broadcast", async (ctx) => {
 
   const text = ctx.message.text.replace(/^\/broadcast\s*/i, "").trim();
   if (!text) {
-    await ctx.reply(
-      "📢 *Broadcast yuborish:*\n/broadcast <xabar matni>",
-      { parse_mode: "Markdown" }
-    );
+    await ctx.reply("📢 Ishlatish: /broadcast <xabar matni>");
     return;
   }
 
@@ -153,7 +142,7 @@ bot.command("broadcast", async (ctx) => {
 
   await ctx.telegram.editMessageText(
     ctx.chat.id, statusMsg.message_id, undefined,
-    `✅ Broadcast yakunlandi!\n\n📊 Natija:\n• Yuborildi: ${success}\n• Xato: ${failed}\n• Jami: ${userIds.length}`
+    `✅ Broadcast yakunlandi!\n\n📊 Yuborildi: ${success}\n❌ Xato: ${failed}\n👥 Jami: ${userIds.length}`
   );
 });
 
@@ -171,7 +160,6 @@ bot.command("stats", async (ctx) => {
 bot.on(message("text"), async (ctx) => {
   registerUser(ctx.from.id);
   const text = ctx.message.text.trim();
-
   if (text.startsWith("/")) return;
 
   const urlMatch = text.match(/https?:\/\/[^\s]+/);
@@ -179,61 +167,63 @@ bot.on(message("text"), async (ctx) => {
   if (urlMatch) {
     const url = urlMatch[0];
 
-    if (!isSupportedUrl(url)) {
+    if (!isInstagramUrl(url)) {
       await ctx.reply(
-        "❌ Faqat Instagram linklari qo'llab-quvvatlanadi.\n\nMusiqa qidirish uchun qo'shiq nomini yozing."
+        "❌ Faqat Instagram linklari qo'llab-quvvatlanadi.\n\nMusiqa uchun qo'shiq nomini yozing."
       );
       return;
     }
 
-    if (isInstagramUrl(url)) {
-      const statusMsg = await ctx.reply("⬇️ Yuklanmoqda...");
+    const statusMsg = await ctx.reply("⏳ Yuklanmoqda...\n📥 Instagram video");
+    const stop = startProgressUpdater(
+      ctx.chat.id, statusMsg.message_id, ctx.telegram, "Instagram video"
+    );
 
-      downloadQueue.add(`insta_${ctx.from.id}_${Date.now()}`, async () => {
-        try {
-          const direct = await getInstagramDirectUrl(url);
+    downloadQueue.add(`insta_${ctx.from.id}_${Date.now()}`, async () => {
+      try {
+        const direct = await getInstagramDirectUrl(url);
 
-          if (direct) {
-            await ctx.telegram.editMessageText(
-              ctx.chat.id, statusMsg.message_id, undefined, "📤 Yuborilmoqda..."
-            );
-            await ctx.replyWithVideo(direct.videoUrl, { caption: `🎬 ${direct.title}` });
-            await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
-          } else {
+        if (direct) {
+          stop();
+          await ctx.telegram.editMessageText(
+            ctx.chat.id, statusMsg.message_id, undefined, "📤 Yuborilmoqda..."
+          );
+          await ctx.replyWithVideo(direct.videoUrl, { caption: `🎬 ${direct.title}` });
+          await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
+        } else {
+          const result = await downloadInstagramVideo(url);
+          stop();
+
+          const stat = await fs.promises.stat(result.filePath);
+          const sizeMb = stat.size / (1024 * 1024);
+          if (sizeMb > 50) {
             await ctx.telegram.editMessageText(
               ctx.chat.id, statusMsg.message_id, undefined,
-              "⬇️ Yuklanmoqda... (bir oz kuting)"
+              `❌ Video juda katta (${sizeMb.toFixed(0)} MB). Telegram 50 MB gacha ruxsat beradi.`
             );
-            const result = await downloadInstagramVideo(url);
-            const stat = await fs.promises.stat(result.filePath);
-            const sizeMb = stat.size / (1024 * 1024);
-            if (sizeMb > 50) {
-              await ctx.telegram.editMessageText(
-                ctx.chat.id, statusMsg.message_id, undefined,
-                `❌ Video juda katta (${sizeMb.toFixed(0)} MB). Telegram 50 MB gacha ruxsat beradi.`
-              );
-              result.cleanup();
-              return;
-            }
-            await ctx.telegram.editMessageText(
-              ctx.chat.id, statusMsg.message_id, undefined, "📤 Yuborilmoqda..."
-            );
-            await ctx.replyWithVideo(
-              { source: fs.createReadStream(result.filePath) },
-              { caption: `🎬 ${result.title}` }
-            );
-            await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
             result.cleanup();
+            return;
           }
-        } catch (err) {
-          logger.error({ err, url }, "Instagram download failed");
+
           await ctx.telegram.editMessageText(
-            ctx.chat.id, statusMsg.message_id, undefined,
-            "❌ Yuklab bo'lmadi.\nBu reel yopiq yoki mavjud emas bo'lishi mumkin."
-          ).catch(() => ctx.reply("❌ Yuklab bo'lmadi."));
+            ctx.chat.id, statusMsg.message_id, undefined, "📤 Yuborilmoqda..."
+          );
+          await ctx.replyWithVideo(
+            { source: fs.createReadStream(result.filePath) },
+            { caption: `🎬 ${result.title}` }
+          );
+          await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
+          result.cleanup();
         }
-      });
-    }
+      } catch (err) {
+        stop();
+        logger.error({ err, url }, "Instagram download failed");
+        await ctx.telegram.editMessageText(
+          ctx.chat.id, statusMsg.message_id, undefined,
+          "❌ Yuklab bo'lmadi.\nBu reel yopiq yoki o'chirilgan bo'lishi mumkin."
+        ).catch(() => ctx.reply("❌ Yuklab bo'lmadi."));
+      }
+    });
     return;
   }
 
