@@ -1,0 +1,206 @@
+Bu g‘oya ishlaydi va Telegram’da juda katta trafik yig‘ishi mumkin. Lekin bu yerda 2 ta muhim texnik va huquqiy muammo bor.
+
+1. Instagram downloader
+
+Instagram juda agressiv rate-limit qiladi.
+
+Oddiy hostingda:
+
+IP block
+
+captcha
+
+temporary ban
+
+request limit
+
+
+tez bo‘ladi.
+
+Shuning uchun professional botlar:
+
+rotating proxy
+
+caching
+
+queue system
+
+
+ishlatadi.
+
+
+---
+
+2. YouTube downloader
+
+YouTube’dan video/audio yuklash texnik jihatdan mumkin.
+
+Ko‘p botlar ishlatadi:
+
+yt-dlp
+
+ffmpeg
+
+
+Lekin:
+
+YouTube Terms of Service bilan konflikt bo‘lishi mumkin.
+
+Juda katta trafikda Google IP’ni cheklashi mumkin.
+
+
+
+---
+
+Sizga tavsiya qiladigan architecture:
+
+Minimum professional stack
+
+Backend
+
+Node.js
+
+Kutubxonalar:
+
+telegraf
+
+yt-dlp
+
+ffmpeg
+
+
+
+---
+
+Server
+
+Boshlanish:
+
+Railway
+
+yoki VPS
+
+
+Keyin:
+
+Hetzner VPS
+
+Contabo VPS
+
+
+Railway million user uchun emas.
+
+
+---
+
+Storage
+
+Videoni serverda saqlamang.
+
+Aks holda disk to‘ladi.
+
+Temporary stream qiling yoki:
+
+Cloudflare R2
+
+AWS S3
+
+
+ishlating.
+
+
+---
+
+Queue system
+
+Bu MAJBURIY.
+
+Agar 10 ming odam bir vaqtda link yuborsa: server o‘ladi.
+
+Shuning uchun:
+
+Redis queue
+
+BullMQ
+
+
+ishlating.
+
+
+---
+
+Audio search system
+
+“Sardor Rahimxon - Qoshiq nomi” deb yozganda:
+
+Siz:
+
+1. YouTube API’dan qidirasiz
+
+
+2. Topilgan videoni yt-dlp bilan mp3 qilasiz
+
+
+3. Telegramga yuborasiz
+
+
+
+
+---
+
+Sizga kerak bo‘ladigan asosiy texnologiyalar:
+
+[Node.js](https://nodejs.org?utm_source=chatgpt.com)
+
+[Telegraf](https://telegraf.js.org?utm_source=chatgpt.com)
+
+[yt-dlp](https://github.com/yt-dlp/yt-dlp?utm_source=chatgpt.com)
+
+[FFmpeg](https://ffmpeg.org?utm_source=chatgpt.com)
+
+[Redis](https://redis.io?utm_source=chatgpt.com)
+
+[BullMQ](https://bullmq.io?utm_source=chatgpt.com)
+
+
+
+---
+
+Muhim real holat
+
+Bu idea kuchli. Chunki:
+
+Uzbek audience video downloader botlarni juda ko‘p ishlatadi.
+
+Traffic juda tez o‘sadi.
+
+Reklama va premium orqali monetizatsiya qilish mumkin.
+
+
+Lekin:
+
+hosting xarajati katta bo‘ladi,
+
+bandwidth juda qimmatlashadi,
+
+copyright complaint kelishi mumkin,
+
+Telegram spam/flood limitlariga tushishingiz mumkin.
+
+
+Agar xohlasangiz keyingi bosqichda:
+
+bot structure,
+
+professional folder architecture,
+
+Redis queue setup,
+
+yt-dlp integration,
+
+Railway deploy,
+
+yoki VPS setup
+
+
+ni bosqichma-bosqich ko‘rsataman.
