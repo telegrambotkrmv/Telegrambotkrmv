@@ -1,14 +1,20 @@
+providers = ["node"]
+
 [phases.setup]
-nixPkgs = ["nodejs_20", "pnpm", "ffmpeg", "python3", "curl"]
+nixPkgs = ["nodejs_20", "ffmpeg", "python3", "curl", "cacert"]
 
 [phases.install]
-cmds = ["pnpm install --frozen-lockfile=false"]
+cmds = [
+  "corepack enable",
+  "corepack prepare pnpm@9.15.0 --activate",
+  "pnpm install --no-frozen-lockfile"
+]
 
 [phases.build]
 cmds = [
-  "mkdir -p bin",
-  "curl -sSL -o bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
-  "chmod +x bin/yt-dlp",
+  "mkdir -p /app/bin",
+  "curl -sSL -o /app/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
+  "chmod +x /app/bin/yt-dlp",
   "pnpm --filter @workspace/api-server run build"
 ]
 
@@ -17,3 +23,4 @@ cmd = "pnpm --filter @workspace/api-server run start"
 
 [variables]
 YTDLP_PATH = "/app/bin/yt-dlp"
+NODE_ENV = "production"
