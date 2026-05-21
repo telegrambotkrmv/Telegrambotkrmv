@@ -8,6 +8,8 @@ import { logger } from "../lib/logger";
 
 const execAsync = promisify(exec);
 
+const YTDLP = process.env.YTDLP_PATH || "/home/runner/workspace/bin/yt-dlp";
+
 export type DownloadResult = {
   filePath: string;
   title: string;
@@ -114,7 +116,7 @@ export async function downloadAudio(url: string): Promise<DownloadResult> {
   logger.info({ url }, "Downloading audio");
 
   const { stdout } = await execAsync(
-    `yt-dlp --no-playlist --format "bestaudio" -x --audio-format mp3 --audio-quality 7 --no-warnings -N 4 -o "${outputTemplate}" "${url}"`,
+    `${YTDLP} --no-playlist --format "bestaudio" -x --audio-format mp3 --audio-quality 7 --no-warnings -N 4 -o "${outputTemplate}" "${url}"`,
     { timeout: 120000 }
   );
 
@@ -181,7 +183,7 @@ export async function downloadAudioCached(url: string, niceTitle?: string): Prom
 export async function getInstagramDirectUrl(url: string): Promise<{ videoUrl: string; title: string } | null> {
   try {
     const { stdout } = await execAsync(
-      `yt-dlp --get-url --get-title --no-playlist --no-warnings --format "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best" "${url}"`,
+      `${YTDLP} --get-url --get-title --no-playlist --no-warnings --format "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best" "${url}"`,
       { timeout: 20000 }
     );
     const lines = stdout.trim().split("\n").map((l) => l.trim()).filter(Boolean);
@@ -204,7 +206,7 @@ export async function downloadInstagramVideo(url: string): Promise<DownloadResul
   logger.info({ url }, "Downloading Instagram video as file");
 
   const { stdout } = await execAsync(
-    `yt-dlp --no-playlist --max-filesize 50m --format "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best" --merge-output-format mp4 --no-warnings --concurrent-fragments 8 -o "${outputTemplate}" "${url}"`,
+    `${YTDLP} --no-playlist --max-filesize 50m --format "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best" --merge-output-format mp4 --no-warnings --concurrent-fragments 8 -o "${outputTemplate}" "${url}"`,
     { timeout: 90000 }
   );
 
