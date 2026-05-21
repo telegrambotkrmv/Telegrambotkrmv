@@ -1,0 +1,30 @@
+I want to build a Telegram bot that helps me find job vacancy posts from Telegram channels.
+
+How it works:
+- When I start the bot for the first time, it asks me to enter channel IDs or usernames
+- I can add one or more channels that publish job vacancies
+- I type a search query like "yunusobod pasuda moyka" meaning I want to find a dishwasher job in Yunusobod district
+- The bot reads recent posts from my added channels and finds matching vacancies
+- The bot sends me the matching posts
+
+Smart search behavior:
+- "pasuda moyka" should also find posts containing "idish yuvuvchi" and "посудомойщик" because they all mean dishwasher
+- "afitsant" should also find posts containing "официант", "afitant", "afitsanka", "официантка" because they all mean waiter or waitress
+- "moyka" should also find "автомойка" and "car wash"
+- "haydovchi" should also find "водитель" and "driver"
+- "oshpaz" should also find "повар" and "cook"
+- "kassir" should also find "кассир" and "cashier"
+- "qorovul" should also find "охранник" and "security"
+- "sotuvchi" should also find "продавец" and "seller"
+- If I include a district name like "yunusobod" or "chilonzor" in my search, only show results from that area
+- If the same vacancy post is repeated 30 or more times in a channel, show it only once
+- If two posts are very similar (duplicate), show only the newest one
+
+Bot commands:
+- /addchannel to add a job vacancy channel
+- /removechannel to remove a channel
+- /listchannels to see all my added channels
+- Any other text I type is treated as a search query
+
+The bot is only for personal use. I will run it on Replit.
+All bot messages must be in Uzbek language.
