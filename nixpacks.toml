@@ -1,0 +1,19 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "pnpm", "ffmpeg", "python3", "curl"]
+
+[phases.install]
+cmds = ["pnpm install --frozen-lockfile=false"]
+
+[phases.build]
+cmds = [
+  "mkdir -p bin",
+  "curl -sSL -o bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp",
+  "chmod +x bin/yt-dlp",
+  "pnpm --filter @workspace/api-server run build"
+]
+
+[start]
+cmd = "pnpm --filter @workspace/api-server run start"
+
+[variables]
+YTDLP_PATH = "/app/bin/yt-dlp"
