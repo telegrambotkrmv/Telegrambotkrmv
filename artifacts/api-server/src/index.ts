@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startBot } from "./bot/bot";
+import { startYtDlpAutoUpdate } from "./bot/ytdlp-updater";
 
 const rawPort = process.env["PORT"];
 
@@ -25,4 +26,5 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
 });
 
+startYtDlpAutoUpdate();
 startBot();
