@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Ujmp3qyC-NO-28ZfVOPvx"
+uri = "file://exports/telegram-bot.tar.gz"
+type = "unspecified"
+title = "Telegram Bot - To'liq loyiha"
