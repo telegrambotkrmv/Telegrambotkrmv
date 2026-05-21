@@ -1,45 +1,48 @@
-# [Project name]
+# Video Downloader Telegram Bot
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+YouTube va Instagram videolarini yuklovchi va qo'shiqchi ismi orqali musiqa qidiruvchi Telegram bot.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — API server va botni ishga tushirish (port 8080)
+- `pnpm run typecheck` — barcha paketlarni typecheck qilish
+- `pnpm run build` — typecheck + build
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Bot: Telegraf 4
+- Video/Audio: yt-dlp + ffmpeg
+- Queue: in-memory SimpleQueue (3 parallel download)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/bot/bot.ts` — Telegram bot logic
+- `artifacts/api-server/src/bot/downloader.ts` — yt-dlp download wrapper
+- `artifacts/api-server/src/bot/queue.ts` — In-memory queue (3 concurrent)
+- `artifacts/api-server/src/index.ts` — Server entry point, bot start
+
+## Bot Commands
+
+- YouTube yoki Instagram linkini yuboring → video yuklanadi
+- `/music <qo'shiqchi - qo'shiq>` → YouTube'dan qidiradi va MP3 yuboradi
+- `/audio <YouTube link>` → faqat audio/MP3 formatda yuklaydi
+- `/start`, `/help` → yo'riqnoma
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- yt-dlp system package ishlatiladi (Node.js wrapper emas) — eng ishonchli yondashuv
+- 50 MB fayl limiti — Telegram Bot API cheklovi
+- in-memory queue (Redis o'rniga) — Replit muhitida sodda va ishonchli
+- Fayllar /tmp papkasiga yuklanadi va yuborilgach o'chiriladi — disk joy tejash
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Bot interfeysi O'zbek tilida
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Telegram 50 MB dan katta fayllarni qabul qilmaydi
+- Instagram ko'pincha IP bloklaydi — ba'zi videolar yuklanmasligi mumkin
+- yt-dlp ni yangilab turish kerak: `nix shell nixpkgs#yt-dlp`
