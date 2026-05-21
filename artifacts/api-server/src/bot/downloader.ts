@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import { promisify } from "util";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -12,6 +13,29 @@ export type DownloadResult = {
   title: string;
   cleanup: () => void;
 };
+
+const MUSIC_CACHE_MAX = 100;
+
+function getCacheDir(): string {
+  const dir = path.join(os.tmpdir(), "tgbot_cache_music");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function cacheKey(url: string): string {
+  return crypto.createHash("sha1").update(url).digest("hex").slice(0, 16);
+}
+
+function evictOldCacheFiles() {
+  const dir = getCacheDir();
+  const files = fs.readdirSync(dir)
+    .map((f) => ({ name: f, path: path.join(dir, f), mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => a.mtime - b.mtime);
+  while (files.length > MUSIC_CACHE_MAX) {
+    const old = files.shift();
+    if (old) { try { fs.unlinkSync(old.path); } catch {} }
+  }
+}
 
 export type SoundCloudTrack = {
   title: string;
@@ -90,7 +114,7 @@ export async function downloadAudio(url: string): Promise<DownloadResult> {
   logger.info({ url }, "Downloading audio");
 
   const { stdout } = await execAsync(
-    `yt-dlp --no-playlist --format "bestaudio" -x --audio-format mp3 --audio-quality 5 --no-warnings -N 4 -o "${outputTemplate}" "${url}"`,
+    `yt-dlp --no-playlist --format "bestaudio" -x --audio-format mp3 --audio-quality 7 --no-warnings -N 4 -o "${outputTemplate}" "${url}"`,
     { timeout: 120000 }
   );
 
@@ -121,10 +145,43 @@ export async function downloadAudio(url: string): Promise<DownloadResult> {
   };
 }
 
+export async function downloadAudioCached(url: string, niceTitle?: string): Promise<DownloadResult> {
+  const cacheDir = getCacheDir();
+  const key = cacheKey(url);
+  const cachedPath = path.join(cacheDir, `${key}.mp3`);
+
+  if (fs.existsSync(cachedPath)) {
+    logger.info({ url, key }, "Music cache HIT");
+    try { fs.utimesSync(cachedPath, new Date(), new Date()); } catch {}
+    return {
+      filePath: cachedPath,
+      title: niceTitle ?? key,
+      cleanup: () => {},
+    };
+  }
+
+  logger.info({ url, key }, "Music cache MISS");
+  const fresh = await downloadAudio(url);
+  try {
+    fs.copyFileSync(fresh.filePath, cachedPath);
+    fresh.cleanup();
+    evictOldCacheFiles();
+  } catch (err) {
+    logger.warn({ err }, "Failed to cache audio, using fresh file");
+    return fresh;
+  }
+
+  return {
+    filePath: cachedPath,
+    title: niceTitle ?? fresh.title,
+    cleanup: () => {},
+  };
+}
+
 export async function getInstagramDirectUrl(url: string): Promise<{ videoUrl: string; title: string } | null> {
   try {
     const { stdout } = await execAsync(
-      `yt-dlp --get-url --get-title --no-playlist --no-warnings --format "best[ext=mp4]/best" "${url}"`,
+      `yt-dlp --get-url --get-title --no-playlist --no-warnings --format "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best" "${url}"`,
       { timeout: 20000 }
     );
     const lines = stdout.trim().split("\n").map((l) => l.trim()).filter(Boolean);
@@ -147,7 +204,7 @@ export async function downloadInstagramVideo(url: string): Promise<DownloadResul
   logger.info({ url }, "Downloading Instagram video as file");
 
   const { stdout } = await execAsync(
-    `yt-dlp --no-playlist --max-filesize 50m --format "best[ext=mp4]/best" --merge-output-format mp4 --no-warnings --concurrent-fragments 8 -o "${outputTemplate}" "${url}"`,
+    `yt-dlp --no-playlist --max-filesize 50m --format "best[height<=720][ext=mp4]/best[height<=720]/best[ext=mp4]/best" --merge-output-format mp4 --no-warnings --concurrent-fragments 8 -o "${outputTemplate}" "${url}"`,
     { timeout: 90000 }
   );
 

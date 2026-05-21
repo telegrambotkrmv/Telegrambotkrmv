@@ -6,7 +6,7 @@ import { downloadQueue } from "./queue";
 import {
   isInstagramUrl,
   searchSoundCloud,
-  downloadAudio,
+  downloadAudioCached,
   getInstagramDirectUrl,
   downloadInstagramVideo,
   type SoundCloudTrack,
@@ -61,6 +61,18 @@ function startProgressUpdater(
 
 function isAdmin(id: number) {
   return id === ADMIN_ID;
+}
+
+const lastRequestAt = new Map<number, number>();
+const RATE_LIMIT_MS = 3000;
+
+function rateLimit(userId: number): boolean {
+  if (isAdmin(userId)) return true;
+  const now = Date.now();
+  const last = lastRequestAt.get(userId) ?? 0;
+  if (now - last < RATE_LIMIT_MS) return false;
+  lastRequestAt.set(userId, now);
+  return true;
 }
 
 function formatDuration(sec: number): string {
@@ -135,7 +147,7 @@ bot.action(/^pick:([a-z0-9]+):(\d+)$/, async (ctx) => {
     );
     let result: { filePath: string; title: string; cleanup: () => void } | null = null;
     try {
-      result = await downloadAudio(track.url);
+      result = await downloadAudioCached(track.url, track.title);
       stop();
 
       await ctx.telegram.editMessageText(
@@ -219,6 +231,11 @@ bot.on(message("text"), async (ctx) => {
   registerUser(ctx.from.id);
   const text = ctx.message.text.trim();
   if (text.startsWith("/")) return;
+
+  if (!rateLimit(ctx.from.id)) {
+    await ctx.reply("⏳ Biroz kuting (3 sekund).").catch(() => {});
+    return;
+  }
 
   const urlMatch = text.match(/https?:\/\/[^\s]+/);
 
